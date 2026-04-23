@@ -32,6 +32,8 @@ CREATE TABLE IF NOT EXISTS jobs (
   escrow_contract_id  TEXT,
   applicant_count     INTEGER     NOT NULL DEFAULT 0,
   deadline            TIMESTAMPTZ,
+  timezone            TEXT,
+  screening_questions TEXT[]      NOT NULL DEFAULT '{}',
   created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -51,6 +53,7 @@ CREATE TABLE IF NOT EXISTS applications (
   proposal            TEXT        NOT NULL,
   bid_amount          NUMERIC(20,7) NOT NULL,
   status              TEXT        NOT NULL DEFAULT 'pending',
+  screening_answers   JSONB       NOT NULL DEFAULT '{}',
   created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (job_id, freelancer_address)              -- prevent duplicate applications
 );

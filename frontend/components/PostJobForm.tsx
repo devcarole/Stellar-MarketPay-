@@ -20,9 +20,10 @@ export default function PostJobForm({ publicKey }: PostJobFormProps) {
   const router = useRouter();
   const toast = useToast();
   const [form, setForm] = useState({
-    title: "", description: "", budget: "", category: "", skillInput: "", deadline: "",
+    title: "", description: "", budget: "", category: "", skillInput: "", deadline: "", timezone: "",
   });
   const [skills, setSkills] = useState<string[]>([]);
+  const [screeningQuestions, setScreeningQuestions] = useState<string[]>([""]);
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<Step>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +51,38 @@ export default function PostJobForm({ publicKey }: PostJobFormProps) {
 
   const removeSkill = (s: string) => setSkills(skills.filter((x) => x !== s));
 
+  const addScreeningQuestion = () => {
+    if (screeningQuestions.length < 5) {
+      setScreeningQuestions([...screeningQuestions, ""]);
+    }
+  };
+
+  const removeScreeningQuestion = (index: number) => {
+    setScreeningQuestions(screeningQuestions.filter((_, i) => i !== index));
+  };
+
+  const updateScreeningQuestion = (index: number, value: string) => {
+    const updated = [...screeningQuestions];
+    updated[index] = value;
+    setScreeningQuestions(updated);
+  };
+
+  function getStepStatus(currentStep: Step, targetStep: Step): "idle" | "active" | "done" {
+    if (currentStep === targetStep) return "active";
+    if (targetStep === "done" && currentStep === "done") return "done";
+    if (targetStep === "locking" && (currentStep === "done" || currentStep === "error")) return "done";
+    if (targetStep === "posting" && (currentStep === "locking" || currentStep === "done" || currentStep === "error")) return "done";
+    return "idle";
+  }
+
+  function getStepTextColor(currentStep: Step, targetStep: Step): string {
+    if (currentStep === targetStep) return "text-amber-100";
+    if (targetStep === "done" && currentStep === "done") return "text-green-400";
+    if (targetStep === "locking" && (currentStep === "done" || currentStep === "error")) return "text-green-400";
+    if (targetStep === "posting" && (currentStep === "locking" || currentStep === "done" || currentStep === "error")) return "text-green-400";
+    return "text-amber-800/50";
+  }
+
   const isValid =
     form.title.trim().length >= 10 &&
     form.description.trim().length >= 30 &&
@@ -73,7 +106,9 @@ export default function PostJobForm({ publicKey }: PostJobFormProps) {
         category: form.category,
         skills,
         deadline: form.deadline || undefined,
+        timezone: form.timezone || undefined,
         clientAddress: publicKey,
+        screeningQuestions: screeningQuestions.filter(q => q.trim().length > 0),
       });
 
       // Step 2 — Build & sign Soroban create_escrow() transaction
@@ -296,25 +331,85 @@ export default function PostJobForm({ publicKey }: PostJobFormProps) {
             className="input-field" min={new Date().toISOString().split("T")[0]} />
         </div>
 
+        {/* Timezone (optional) */}
+        <div>
+          <label className="label">Timezone/Location <span className="normal-case text-amber-900 font-normal">(optional)</span></label>
+          <select value={form.timezone} onChange={(e) => set("timezone", e.target.value)}
+            className="input-field appearance-none cursor-pointer">
+            <option value="">No timezone preference</option>
+            <option value="UTC">UTC (Universal)</option>
+            <option value="America/New_York">America/New York (EST/EDT)</option>
+            <option value="America/Los_Angeles">America/Los Angeles (PST/PDT)</option>
+            <option value="America/Chicago">America/Chicago (CST/CDT)</option>
+            <option value="Europe/London">Europe/London (GMT/BST)</option>
+            <option value="Europe/Paris">Europe/Paris (CET/CEST)</option>
+            <option value="Europe/Berlin">Europe/Berlin (CET/CEST)</option>
+            <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
+            <option value="Asia/Shanghai">Asia/Shanghai (CST)</option>
+            <option value="Asia/Singapore">Asia/Singapore (SGT)</option>
+            <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
+            <option value="Australia/Sydney">Australia/Sydney (AEST/AEDT)</option>
+            <option value="Pacific/Auckland">Pacific/Auckland (NZST/NZDT)</option>
+          </select>
+          <p className="mt-1 text-xs text-amber-800/50">Helps freelancers in compatible timezones find your job</p>
+        </div>
+
+        {/* Screening Questions (optional) */}
+        <div>
+          <label className="label">Screening Questions <span className="normal-case text-amber-900 font-normal">(optional - up to 5)</span></label>
+          <p className="text-xs text-amber-800/50 mb-3">Add questions applicants must answer when applying. This helps filter relevant candidates.</p>
+          <div className="space-y-3">
+            {screeningQuestions.map((question, index) => (
+              <div key={index} className="flex gap-2">
+                <input
+                  type="text"
+                  value={question}
+                  onChange={(e) => updateScreeningQuestion(index, e.target.value)}
+                  placeholder={`Question ${index + 1}`}
+                  className="input-field flex-1"
+                />
+                {screeningQuestions.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeScreeningQuestion(index)}
+                    className="btn-secondary px-3 py-2 text-sm"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            ))}
+            {screeningQuestions.length < 5 && (
+              <button
+                type="button"
+                onClick={addScreeningQuestion}
+                className="btn-secondary text-sm py-2 px-4"
+              >
+                + Add Question
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* Multi-step progress indicator */}
         {step !== "idle" && (
           <div className="p-4 rounded-xl bg-market-900/60 border border-market-500/20 space-y-3">
             <p className="text-xs font-medium text-amber-800/70 uppercase tracking-wider">Transaction progress</p>
             <div className="flex items-center gap-3">
-              <StepDot status={step === "posting" ? "active" : step === "idle" || step === "error" ? "idle" : "done"} />
-              <span className={clsx("text-sm", step === "posting" ? "text-amber-100" : step === "idle" ? "text-amber-800/50" : "text-green-400")}>
+              <StepDot status={getStepStatus(step, "posting")} />
+              <span className={clsx("text-sm", getStepTextColor(step, "posting"))}>
                 Posting job
               </span>
             </div>
             <div className="flex items-center gap-3">
-              <StepDot status={step === "locking" ? "active" : step === "done" ? "done" : "idle"} />
-              <span className={clsx("text-sm", step === "locking" ? "text-amber-100" : step === "done" ? "text-green-400" : "text-amber-800/50")}>
+              <StepDot status={getStepStatus(step, "locking")} />
+              <span className={clsx("text-sm", getStepTextColor(step, "locking"))}>
                 Locking escrow on-chain
               </span>
             </div>
             <div className="flex items-center gap-3">
-              <StepDot status={step === "done" ? "done" : "idle"} />
-              <span className={clsx("text-sm", step === "done" ? "text-green-400" : "text-amber-800/50")}>
+              <StepDot status={getStepStatus(step, "done")} />
+              <span className={clsx("text-sm", getStepTextColor(step, "done"))}>
                 Complete
               </span>
             </div>

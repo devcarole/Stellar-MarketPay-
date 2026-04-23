@@ -245,8 +245,24 @@ export default function JobDetail({ publicKey, onConnect }: JobDetailProps) {
                   </div>
                 </div>
                 <p className="text-amber-700/80 text-sm leading-relaxed mb-4">{app.proposal}</p>
+                
+                {/* Screening Answers */}
+                {app.screeningAnswers && Object.keys(app.screeningAnswers).length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-market-500/10">
+                    <h4 className="text-xs font-semibold text-amber-800 uppercase tracking-wider mb-3">Screening Question Answers</h4>
+                    <div className="space-y-3">
+                      {Object.entries(app.screeningAnswers).map(([question, answer], index) => (
+                        <div key={index}>
+                          <p className="text-xs text-amber-300 font-medium mb-1">{question}</p>
+                          <p className="text-sm text-amber-700/80 bg-market-500/5 p-2 rounded border border-market-500/10">{answer}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
                 {app.status === "pending" && job.status === "open" && (
-                  <button onClick={() => handleAcceptApplication(app.id)} className="btn-secondary text-sm py-2 px-4">
+                  <button onClick={() => handleAcceptApplication(app.id)} className="btn-secondary text-sm py-2 px-4 mt-4">
                     Accept Proposal
                   </button>
                 )}
